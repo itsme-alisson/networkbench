@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>NetworkBench</title>
+  <defs>
+    <linearGradient id="trace" x1="17" y1="46" x2="47" y2="18" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9FE8B5"/>
+      <stop offset="1" stop-color="#77D5F5"/>
+    </linearGradient>
+    <linearGradient id="tile" x1="4" y1="4" x2="60" y2="60" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#263B40"/>
+      <stop offset="1" stop-color="#142126"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#tile)" stroke="#567C79" stroke-width="2"/>
+  <path d="M18 45V19L46 45V19" stroke="url(#trace)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#17282D" stroke="url(#trace)" stroke-width="3">
+    <circle cx="18" cy="19" r="5"/>
+    <circle cx="18" cy="45" r="5"/>
+    <circle cx="46" cy="19" r="5"/>
+    <circle cx="46" cy="45" r="5"/>
+  </g>
+  <circle cx="32" cy="32" r="3" fill="#E0FFF0"/>
+</svg>

@@ -1,0 +1,311 @@
+{
+  "jinja": [
+    {
+      "name": "Network, netmask, and gateway",
+      "data": "address: 192.0.2.10/24\nsubnet: 192.0.2.0/24",
+      "template": "Address: {{ address | ipaddr('address') }}\nNetwork: {{ address | ipaddr('network') }}\nNetmask: {{ address | ipaddr('netmask') }}\nPrefix: {{ address | ipaddr('prefix') }}\nGateway: {{ subnet | ipaddr('1') | ipaddr('address') }}\nBroadcast: {{ subnet | ipaddr('-1') | ipaddr('address') }}",
+      "expected": "Address: 192.0.2.10\nNetwork: 192.0.2.0\nNetmask: 255.255.255.0\nPrefix: 24\nGateway: 192.0.2.1\nBroadcast: 192.0.2.255"
+    },
+    {
+      "name": "Filter IPv4 and IPv6 addresses",
+      "data": "addresses:\n  - 192.0.2.1\n  - not-an-ip\n  - \"2001:db8::1\"\n  - 198.51.100.20",
+      "template": "IPv4: {{ addresses | ipv4 | join(', ') }}\nIPv6: {{ addresses | ipv6 | join(', ') }}",
+      "expected": "IPv4: 192.0.2.1, 198.51.100.20\nIPv6: 2001:db8::1"
+    },
+    {
+      "name": "Subnet calculations",
+      "data": "subnet: 192.0.2.0/24\naddress: 192.0.2.10",
+      "template": "Second /26: {{ subnet | ipsubnet(26, 1) }}\nHost index 2: {{ subnet | nthhost(2) }}\nAdd 5: {{ address | ipmath(5) }}",
+      "expected": "Second /26: 192.0.2.64/26\nHost index 2: 192.0.2.2\nAdd 5: 192.0.2.15"
+    },
+    {
+      "name": "Generate interface configuration",
+      "data": "interfaces:\n  - name: GigabitEthernet0/1\n    description: Office LAN\n    address: 192.0.2.1/24\n  - name: GigabitEthernet0/2\n    description: Transit\n    address: 198.51.100.1/30",
+      "template": "{% for interface in interfaces -%}\ninterface {{ interface.name }}\n description {{ interface.description }}\n ip address {{ interface.address | ipaddr('address') }} {{ interface.address | ipaddr('netmask') }}\n no shutdown\n!\n{% endfor -%}",
+      "expected": "interface GigabitEthernet0/1\n description Office LAN\n ip address 192.0.2.1 255.255.255.0\n no shutdown\n!\ninterface GigabitEthernet0/2\n description Transit\n ip address 198.51.100.1 255.255.255.252\n no shutdown\n!\n"
+    },
+    {
+      "name": "VLAN ranges",
+      "data": "vlans: [10, 11, 12, 20, 30, 31, 32]\ntrunk: 10-12,20",
+      "template": "Allowed: {{ vlans | vlan_parser | join(',') }}\nExpanded: {{ trunk | vlan_expander | join(', ') }}",
+      "expected": "Allowed: 10-12,20,30-32\nExpanded: 10, 11, 12, 20"
+    },
+    {
+      "name": "Regex helpers",
+      "data": "interface: GigabitEthernet0/1\noutput: |\n  Gi0/1 up\n  Gi0/2 down\n  Gi0/3 up",
+      "template": "Short name: {{ interface | regex_replace('^GigabitEthernet', 'Gi') }}\nPort: {{ interface | regex_search('[0-9]+/[0-9]+$') }}\nUp interfaces: {{ output | regex_findall('^(Gi[0-9]+/[0-9]+) +up$', multiline=true) | join(', ') }}",
+      "expected": "Short name: Gi0/1\nPort: 0/1\nUp interfaces: Gi0/1, Gi0/3"
+    },
+    {
+      "name": "Dictionary helpers",
+      "data": "defaults:\n  mtu: 1500\n  logging:\n    enabled: true\n    level: warnings\noverrides:\n  mtu: 9000\n  logging:\n    level: informational\nports:\n  Gi0/1: uplink\n  Gi0/2: office",
+      "template": "{% set config = defaults | combine(overrides, recursive=true) -%}\nMTU: {{ config.mtu }}\nLogging: {{ config.logging.enabled }} / {{ config.logging.level }}\n{% set records = ports | dict2items -%}\nInterfaces: {{ records | map(attribute='key') | join(', ') }}\n{% set restored = records | items2dict -%}\nUplink description: {{ restored['Gi0/1'] }}",
+      "expected": "MTU: 9000\nLogging: True / informational\nInterfaces: Gi0/1, Gi0/2\nUplink description: uplink"
+    },
+    {
+      "name": "Intended versus actual",
+      "data": "intended: [10, 20, 30, 40]\nactual: [10, 20, 50]",
+      "template": "Missing: {{ intended | difference(actual) | sort | join(', ') }}\nUnexpected: {{ actual | difference(intended) | sort | join(', ') }}\nCommon: {{ intended | intersect(actual) | sort | join(', ') }}\nAll differences: {{ intended | symmetric_difference(actual) | sort | join(', ') }}",
+      "expected": "Missing: 30, 40\nUnexpected: 50\nCommon: 10, 20\nAll differences: 30, 40, 50"
+    }
+  ],
+  "ttp": [
+    {
+      "name": "Interface descriptions",
+      "data": "interface GigabitEthernet0/1\n description Uplink\ninterface GigabitEthernet0/2\n description Office LAN",
+      "template": "<group name=\"interfaces*\">\ninterface {{ name }}\n description {{ description | ORPHRASE }}\n</group>",
+      "expected": [
+        [
+          {
+            "interfaces": [
+              {
+                "name": "GigabitEthernet0/1",
+                "description": "Uplink"
+              },
+              {
+                "name": "GigabitEthernet0/2",
+                "description": "Office LAN"
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "Interface status table",
+      "data": "Gi0/1 up 1000\nGi0/2 down 100\nGi0/3 up 10000",
+      "template": "<group name=\"interfaces*\" method=\"table\">\n{{ name }} {{ status }} {{ speed | to_int }}\n</group>",
+      "expected": [
+        [
+          {
+            "interfaces": [
+              {
+                "name": "Gi0/1",
+                "status": "up",
+                "speed": 1000
+              },
+              {
+                "name": "Gi0/2",
+                "status": "down",
+                "speed": 100
+              },
+              {
+                "name": "Gi0/3",
+                "status": "up",
+                "speed": 10000
+              }
+            ]
+          }
+        ]
+      ]
+    },
+    {
+      "name": "BGP neighbors",
+      "data": "neighbor 192.0.2.1 remote-as 65001\nneighbor 192.0.2.2 remote-as 65002",
+      "template": "<group name=\"neighbors*\" method=\"table\">\nneighbor {{ address }} remote-as {{ asn | to_int }}\n</group>",
+      "expected": [
+        [
+          {
+            "neighbors": [
+              {
+                "address": "192.0.2.1",
+                "asn": 65001
+              },
+              {
+                "address": "192.0.2.2",
+                "asn": 65002
+              }
+            ]
+          }
+        ]
+      ]
+    }
+  ],
+  "textfsm": [
+    {
+      "name": "Interface status",
+      "data": "Gi0/1 up\nGi0/2 down\nGi0/3 up\n",
+      "template": "Value INTERFACE (\\S+)\nValue STATUS (up|down)\n\nStart\n  ^${INTERFACE}\\s+${STATUS} -> Record\n",
+      "expected": [
+        {
+          "INTERFACE": "Gi0/1",
+          "STATUS": "up"
+        },
+        {
+          "INTERFACE": "Gi0/2",
+          "STATUS": "down"
+        },
+        {
+          "INTERFACE": "Gi0/3",
+          "STATUS": "up"
+        }
+      ]
+    },
+    {
+      "name": "Routing table",
+      "data": "10.0.0.0/24 192.0.2.1 Gi0/1\n10.0.1.0/24 192.0.2.2 Gi0/2\n",
+      "template": "Value PREFIX (\\S+)\nValue NEXT_HOP (\\S+)\nValue INTERFACE (\\S+)\n\nStart\n  ^${PREFIX}\\s+${NEXT_HOP}\\s+${INTERFACE} -> Record\n",
+      "expected": [
+        {
+          "PREFIX": "10.0.0.0/24",
+          "NEXT_HOP": "192.0.2.1",
+          "INTERFACE": "Gi0/1"
+        },
+        {
+          "PREFIX": "10.0.1.0/24",
+          "NEXT_HOP": "192.0.2.2",
+          "INTERFACE": "Gi0/2"
+        }
+      ]
+    },
+    {
+      "name": "BGP neighbor summary",
+      "data": "192.0.2.1 65001 Established 42\n192.0.2.2 65002 Idle 0\n",
+      "template": "Value NEIGHBOR (\\S+)\nValue ASN (\\d+)\nValue STATE (\\S+)\nValue PREFIXES (\\d+)\n\nStart\n  ^${NEIGHBOR}\\s+${ASN}\\s+${STATE}\\s+${PREFIXES} -> Record\n",
+      "expected": [
+        {
+          "NEIGHBOR": "192.0.2.1",
+          "ASN": "65001",
+          "STATE": "Established",
+          "PREFIXES": "42"
+        },
+        {
+          "NEIGHBOR": "192.0.2.2",
+          "ASN": "65002",
+          "STATE": "Idle",
+          "PREFIXES": "0"
+        }
+      ]
+    }
+  ],
+  "xpath": [
+    {
+      "name": "Find interfaces that are up",
+      "data": "<interfaces>\n  <interface><name>Gi0/1</name><status>up</status></interface>\n  <interface><name>Gi0/2</name><status>down</status></interface>\n  <interface><name>Gi0/3</name><status>up</status></interface>\n</interfaces>",
+      "template": "//interface[status=\"up\"]/name/text()",
+      "expected": [
+        "Gi0/1",
+        "Gi0/3"
+      ]
+    },
+    {
+      "name": "Count active interfaces",
+      "data": "<interfaces>\n  <interface><name>Gi0/1</name><status>up</status></interface>\n  <interface><name>Gi0/2</name><status>down</status></interface>\n  <interface><name>Gi0/3</name><status>up</status></interface>\n</interfaces>",
+      "template": "count(//interface[status=\"up\"])",
+      "expected": 2.0
+    },
+    {
+      "name": "Query XML namespaces",
+      "data": "<interfaces xmlns=\"urn:example:interfaces\">\n  <interface><name>Gi0/1</name><status>up</status></interface>\n  <interface><name>Gi0/2</name><status>down</status></interface>\n</interfaces>",
+      "template": "//default:interface[default:status=\"up\"]/default:name/text()",
+      "expected": [
+        "Gi0/1"
+      ]
+    }
+  ],
+  "json": [
+    {
+      "name": "Device inventory",
+      "template": "",
+      "data": "{\"hostname\":\"edge-router\",\"management_ip\":\"192.0.2.10\",\"enabled\":true,\"tags\":[\"edge\",\"production\"]}",
+      "expected": {
+        "hostname": "edge-router",
+        "management_ip": "192.0.2.10",
+        "enabled": true,
+        "tags": [
+          "edge",
+          "production"
+        ]
+      }
+    },
+    {
+      "name": "Interface list",
+      "template": "",
+      "data": "[{\"name\":\"Gi0/1\",\"mtu\":9000,\"description\":\"Uplink\"},{\"name\":\"Gi0/2\",\"mtu\":1500,\"description\":null}]",
+      "expected": [
+        {
+          "name": "Gi0/1",
+          "mtu": 9000,
+          "description": "Uplink"
+        },
+        {
+          "name": "Gi0/2",
+          "mtu": 1500,
+          "description": null
+        }
+      ]
+    },
+    {
+      "name": "Nested API response",
+      "template": "",
+      "data": "{\"count\":2,\"results\":[{\"id\":1,\"device\":{\"name\":\"r1\"},\"address\":\"192.0.2.1/24\"},{\"id\":2,\"device\":{\"name\":\"r2\"},\"address\":\"192.0.2.2/24\"}]}",
+      "expected": {
+        "count": 2,
+        "results": [
+          {
+            "id": 1,
+            "device": {
+              "name": "r1"
+            },
+            "address": "192.0.2.1/24"
+          },
+          {
+            "id": 2,
+            "device": {
+              "name": "r2"
+            },
+            "address": "192.0.2.2/24"
+          }
+        ]
+      }
+    }
+  ],
+  "json_yaml": [
+    {
+      "name": "JSON \u2192 YAML: device configuration",
+      "template": "",
+      "data": "{\n  \"hostname\": \"edge-router\",\n  \"interfaces\": [\n    {\n      \"name\": \"Gi0/1\",\n      \"mtu\": 9000,\n      \"enabled\": true\n    },\n    {\n      \"name\": \"Gi0/2\",\n      \"mtu\": 1500,\n      \"enabled\": false\n    }\n  ]\n}",
+      "options": {
+        "direction": "json_to_yaml"
+      },
+      "expected": {
+        "hostname": "edge-router",
+        "interfaces": [
+          {
+            "name": "Gi0/1",
+            "mtu": 9000,
+            "enabled": true
+          },
+          {
+            "name": "Gi0/2",
+            "mtu": 1500,
+            "enabled": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "YAML \u2192 JSON: device configuration",
+      "template": "",
+      "data": "hostname: edge-router\ninterfaces:\n  - name: Gi0/1\n    mtu: 9000\n    enabled: true\n  - name: Gi0/2\n    mtu: 1500\n    enabled: false\n",
+      "options": {
+        "direction": "yaml_to_json"
+      },
+      "expected": {
+        "hostname": "edge-router",
+        "interfaces": [
+          {
+            "name": "Gi0/1",
+            "mtu": 9000,
+            "enabled": true
+          },
+          {
+            "name": "Gi0/2",
+            "mtu": 1500,
+            "enabled": false
+          }
+        ]
+      }
+    }
+  ]
+}

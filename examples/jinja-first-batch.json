@@ -1,0 +1,26 @@
+[
+  {
+    "name": "VLAN ranges",
+    "data": "vlans: [10, 11, 12, 20, 30, 31, 32]\ntrunk: 10-12,20",
+    "template": "Allowed: {{ vlans | vlan_parser | join(',') }}\nExpanded: {{ trunk | vlan_expander | join(', ') }}",
+    "expected": "Allowed: 10-12,20,30-32\nExpanded: 10, 11, 12, 20"
+  },
+  {
+    "name": "Regex helpers",
+    "data": "interface: GigabitEthernet0/1\noutput: |\n  Gi0/1 up\n  Gi0/2 down\n  Gi0/3 up",
+    "template": "Short name: {{ interface | regex_replace('^GigabitEthernet', 'Gi') }}\nPort: {{ interface | regex_search('[0-9]+/[0-9]+$') }}\nUp interfaces: {{ output | regex_findall('^(Gi[0-9]+/[0-9]+) +up$', multiline=true) | join(', ') }}",
+    "expected": "Short name: Gi0/1\nPort: 0/1\nUp interfaces: Gi0/1, Gi0/3"
+  },
+  {
+    "name": "Dictionary helpers",
+    "data": "defaults:\n  mtu: 1500\n  logging:\n    enabled: true\n    level: warnings\noverrides:\n  mtu: 9000\n  logging:\n    level: informational\nports:\n  Gi0/1: uplink\n  Gi0/2: office",
+    "template": "{% set config = defaults | combine(overrides, recursive=true) -%}\nMTU: {{ config.mtu }}\nLogging: {{ config.logging.enabled }} / {{ config.logging.level }}\n{% set records = ports | dict2items -%}\nInterfaces: {{ records | map(attribute='key') | join(', ') }}\n{% set restored = records | items2dict -%}\nUplink description: {{ restored['Gi0/1'] }}",
+    "expected": "MTU: 9000\nLogging: True / informational\nInterfaces: Gi0/1, Gi0/2\nUplink description: uplink"
+  },
+  {
+    "name": "Intended versus actual",
+    "data": "intended: [10, 20, 30, 40]\nactual: [10, 20, 50]",
+    "template": "Missing: {{ intended | difference(actual) | sort | join(', ') }}\nUnexpected: {{ actual | difference(intended) | sort | join(', ') }}\nCommon: {{ intended | intersect(actual) | sort | join(', ') }}\nAll differences: {{ intended | symmetric_difference(actual) | sort | join(', ') }}",
+    "expected": "Missing: 30, 40\nUnexpected: 50\nCommon: 10, 20\nAll differences: 30, 40, 50"
+  }
+]
