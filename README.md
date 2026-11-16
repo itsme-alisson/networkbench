@@ -1,6 +1,6 @@
 # NetworkBench
 
-A local toolkit for network engineers. Render templates, parse device output, validate data, and convert between JSON and YAML—all from your browser.
+A local toolkit for network automation engineers. Render templates, parse device output, validate data, and convert between JSON and YAML—all from your browser.
 
 Your data stays on your computer. No account required, no analytics, and no cloud services. The first build needs internet access; after that, the tools work offline.
 
@@ -14,6 +14,25 @@ Your data stays on your computer. No account required, no analytics, and no clou
 | XPath | Query XML using XPath expressions. |
 | JSON | Validate and format JSON. |
 | JSON ↔ YAML | Convert between the two formats. |
+
+## Screenshots
+
+**Render Jinja templates with network filters.**
+
+![NetworkBench rendering VLAN ranges from a Jinja template](docs/screenshots/jinja-renderer.png)
+
+<details>
+<summary>See the TextFSM parser and JSON ↔ YAML converter</summary>
+
+**Parse device output into structured data.**
+
+![NetworkBench parsing interface status with TextFSM](docs/screenshots/textfsm-parser.png)
+
+**Convert JSON and YAML side by side.**
+
+![NetworkBench converting a device configuration from JSON to YAML](docs/screenshots/json-yaml-converter.png)
+
+</details>
 
 ## Get started
 
