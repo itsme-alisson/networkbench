@@ -21,9 +21,6 @@ Your data stays on your computer. No account required, no analytics, and no clou
 
 ![NetworkBench rendering VLAN ranges from a Jinja template](docs/screenshots/jinja-renderer.png)
 
-<details>
-<summary>See the TextFSM parser and JSON ↔ YAML converter</summary>
-
 **Parse device output into structured data.**
 
 ![NetworkBench parsing interface status with TextFSM](docs/screenshots/textfsm-parser.png)
@@ -32,7 +29,7 @@ Your data stays on your computer. No account required, no analytics, and no clou
 
 ![NetworkBench converting a device configuration from JSON to YAML](docs/screenshots/json-yaml-converter.png)
 
-</details>
+
 
 ## Get started
 
